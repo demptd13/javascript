@@ -6,6 +6,7 @@ import type { FontFamily } from './appearance';
 import type { DisplayConfigJSON } from './displayConfig';
 import type { ActJWTClaim } from './jwt';
 import type { OAuthProvider } from './oauth';
+import type { OrganizationDomainVerificationStatus, OrganizationEnrollmentMode } from './organizationDomain';
 import type { OrganizationInvitationStatus } from './organizationInvitation';
 import type { MembershipRole } from './organizationMembership';
 import type { OrganizationSettingsJSON } from './organizationSettings';
@@ -343,6 +344,25 @@ export interface OrganizationInvitationJSON extends ClerkResourceJSON {
   updated_at: number;
 }
 
+interface OrganizationDomainVerificationJSON {
+  status: OrganizationDomainVerificationStatus;
+  strategy: 'email_code'; // only available value for now
+  attempts: number;
+  expires_at: number;
+}
+
+export interface OrganizationDomainJSON extends ClerkResourceJSON {
+  object: 'organization_domain';
+  id: string;
+  name: string;
+  organization_id: string;
+  enrollment_mode: OrganizationEnrollmentMode;
+  verification: OrganizationDomainVerificationJSON | null;
+  affiliation_email_address: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface UserOrganizationInvitationJSON extends ClerkResourceJSON {
   object: 'organization_invitation';
   id: string;
@@ -350,7 +370,7 @@ export interface UserOrganizationInvitationJSON extends ClerkResourceJSON {
   public_organization_data: {
     id: string;
     name: string;
-    slug: string;
+    slug: string | null;
     has_image: boolean;
     image_url: string;
   };
