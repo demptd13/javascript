@@ -9,7 +9,7 @@ export interface OrganizationDomainVerification {
 
 export type OrganizationDomainVerificationStatus = 'unverified' | 'verified';
 
-export type OrganizationEnrollmentMode = 'manual_invitation' | 'automatic_invitation';
+export type OrganizationEnrollmentMode = 'manual_invitation' | 'automatic_invitation' | 'automatic_suggestion';
 
 export interface OrganizationDomainResource extends ClerkResource {
   id: string;
@@ -20,9 +20,7 @@ export interface OrganizationDomainResource extends ClerkResource {
   createdAt: Date;
   updatedAt: Date;
   affiliationEmailAddress: string | null;
-  prepareDomainAffiliationVerification: (
-    params: PrepareAffiliationVerificationParams,
-  ) => Promise<OrganizationDomainResource>;
+  prepareAffiliationVerification: (params: PrepareAffiliationVerificationParams) => Promise<OrganizationDomainResource>;
 
   attemptAffiliationVerification: (params: AttemptAffiliationVerificationParams) => Promise<OrganizationDomainResource>;
   delete: () => Promise<void>;
