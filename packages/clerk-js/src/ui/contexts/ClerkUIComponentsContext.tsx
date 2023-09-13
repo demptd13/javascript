@@ -8,6 +8,7 @@ import { useRouter } from '../router';
 import type {
   AvailableComponentCtx,
   CreateOrganizationCtx,
+  OrganizationListCtx,
   OrganizationProfileCtx,
   OrganizationSwitcherCtx,
   SignInCtx,
@@ -34,29 +35,24 @@ export const useSignUpContext = (): SignUpContextType => {
   const { displayConfig } = useEnvironment();
   const { queryParams } = useRouter();
   const options = useOptions();
-  const clerk = useCoreClerk();
 
   if (componentName !== 'SignUp') {
     throw new Error('Clerk: useSignUpContext called outside of the mounted SignUp component.');
   }
 
-  const afterSignUpUrl = clerk.buildUrlWithAuth(
-    pickRedirectionProp('afterSignUpUrl', {
-      queryParams,
-      ctx,
-      options,
-      displayConfig,
-    }),
-  );
+  const afterSignUpUrl = pickRedirectionProp('afterSignUpUrl', {
+    queryParams,
+    ctx,
+    options,
+    displayConfig,
+  });
 
-  const afterSignInUrl = clerk.buildUrlWithAuth(
-    pickRedirectionProp('afterSignInUrl', {
-      queryParams,
-      ctx,
-      options,
-      displayConfig,
-    }),
-  );
+  const afterSignInUrl = pickRedirectionProp('afterSignInUrl', {
+    queryParams,
+    ctx,
+    options,
+    displayConfig,
+  });
 
   const navigateAfterSignUp = () => navigate(afterSignUpUrl);
 
@@ -104,29 +100,24 @@ export const useSignInContext = (): SignInContextType => {
   const { displayConfig } = useEnvironment();
   const { queryParams } = useRouter();
   const options = useOptions();
-  const clerk = useCoreClerk();
 
   if (componentName !== 'SignIn') {
     throw new Error('Clerk: useSignInContext called outside of the mounted SignIn component.');
   }
 
-  const afterSignUpUrl = clerk.buildUrlWithAuth(
-    pickRedirectionProp('afterSignUpUrl', {
-      queryParams,
-      ctx,
-      options,
-      displayConfig,
-    }),
-  );
+  const afterSignUpUrl = pickRedirectionProp('afterSignUpUrl', {
+    queryParams,
+    ctx,
+    options,
+    displayConfig,
+  });
 
-  const afterSignInUrl = clerk.buildUrlWithAuth(
-    pickRedirectionProp('afterSignInUrl', {
-      queryParams,
-      ctx,
-      options,
-      displayConfig,
-    }),
-  );
+  const afterSignInUrl = pickRedirectionProp('afterSignInUrl', {
+    queryParams,
+    ctx,
+    options,
+    displayConfig,
+  });
 
   const navigateAfterSignIn = () => navigate(afterSignInUrl);
 
@@ -224,7 +215,7 @@ export const useOrganizationSwitcherContext = () => {
   const { displayConfig } = useEnvironment();
 
   if (componentName !== 'OrganizationSwitcher') {
-    throw new Error('Clerk: useUserButtonContext called outside OrganizationSwitcher.');
+    throw new Error('Clerk: useOrganizationSwitcherContext called outside OrganizationSwitcher.');
   }
 
   const afterCreateOrganizationUrl = ctx.afterCreateOrganizationUrl || displayConfig.afterCreateOrganizationUrl;
@@ -293,6 +284,83 @@ export const useOrganizationSwitcherContext = () => {
   };
 };
 
+export const useOrganizationListContext = () => {
+  const { componentName, ...ctx } = (React.useContext(ComponentContext) || {}) as unknown as OrganizationListCtx;
+  const { navigate } = useRouter();
+  const { displayConfig } = useEnvironment();
+
+  if (componentName !== 'OrganizationList') {
+    throw new Error('Clerk: useOrganizationListContext called outside OrganizationList.');
+  }
+
+  const afterCreateOrganizationUrl = ctx.afterCreateOrganizationUrl || displayConfig.afterCreateOrganizationUrl;
+
+  const navigateAfterCreateOrganization = (organization: OrganizationResource) => {
+    if (typeof ctx.afterCreateOrganizationUrl === 'function') {
+      return navigate(ctx.afterCreateOrganizationUrl(organization));
+    }
+
+    if (ctx.afterCreateOrganizationUrl) {
+      const parsedUrl = populateParamFromObject({
+        urlWithParam: ctx.afterCreateOrganizationUrl,
+        entity: organization,
+      });
+      return navigate(parsedUrl);
+    }
+
+    return navigate(displayConfig.afterCreateOrganizationUrl);
+  };
+
+  const navigateAfterSelectOrganizationOrPersonal = ({
+    organization,
+    user,
+  }: {
+    organization?: OrganizationResource;
+    user?: UserResource;
+  }) => {
+    if (typeof ctx.afterSelectPersonalUrl === 'function' && user) {
+      return navigate(ctx.afterSelectPersonalUrl(user));
+    }
+
+    if (typeof ctx.afterSelectOrganizationUrl === 'function' && organization) {
+      return navigate(ctx.afterSelectOrganizationUrl(organization));
+    }
+
+    if (ctx.afterSelectPersonalUrl && user) {
+      const parsedUrl = populateParamFromObject({
+        urlWithParam: ctx.afterSelectPersonalUrl as string,
+        entity: user,
+      });
+      return navigate(parsedUrl);
+    }
+
+    if (ctx.afterSelectOrganizationUrl && organization) {
+      const parsedUrl = populateParamFromObject({
+        urlWithParam: ctx.afterSelectOrganizationUrl as string,
+        entity: organization,
+      });
+      return navigate(parsedUrl);
+    }
+
+    return Promise.resolve();
+  };
+
+  const navigateAfterSelectOrganization = (organization: OrganizationResource) =>
+    navigateAfterSelectOrganizationOrPersonal({ organization });
+  const navigateAfterSelectPersonal = (user: UserResource) => navigateAfterSelectOrganizationOrPersonal({ user });
+
+  return {
+    ...ctx,
+    afterCreateOrganizationUrl,
+    skipInvitationScreen: ctx.skipInvitationScreen || false,
+    hidePersonal: ctx.hidePersonal || false,
+    navigateAfterCreateOrganization,
+    navigateAfterSelectOrganization,
+    navigateAfterSelectPersonal,
+    componentName,
+  };
+};
+
 export const useOrganizationProfileContext = () => {
   const { componentName, ...ctx } = (React.useContext(ComponentContext) || {}) as OrganizationProfileCtx;
   const { navigate } = useRouter();
@@ -339,6 +407,7 @@ export const useCreateOrganizationContext = () => {
 
   return {
     ...ctx,
+    skipInvitationScreen: ctx.skipInvitationScreen || false,
     navigateAfterCreateOrganization,
     componentName,
   };

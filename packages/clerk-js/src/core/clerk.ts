@@ -1,4 +1,5 @@
 import type { LocalStorageBroadcastChannel } from '@clerk/shared';
+import { isCrossOrigin, isRelativeUrl } from '@clerk/shared';
 import {
   addClerkPrefix,
   handleValueOrFn,
@@ -31,6 +32,7 @@ import type {
   InstanceType,
   ListenerCallback,
   OrganizationInvitationResource,
+  OrganizationListProps,
   OrganizationMembershipResource,
   OrganizationProfileProps,
   OrganizationResource,
@@ -505,6 +507,23 @@ export default class Clerk implements ClerkInterface {
     void this.#componentControls?.ensureMounted().then(controls => controls.unmountComponent({ node }));
   };
 
+  public mountOrganizationList = (node: HTMLDivElement, props?: OrganizationListProps) => {
+    this.assertComponentsReady(this.#componentControls);
+    void this.#componentControls?.ensureMounted({ preloadHint: 'OrganizationList' }).then(controls =>
+      controls.mountComponent({
+        name: 'OrganizationList',
+        appearanceKey: 'organizationList',
+        node,
+        props,
+      }),
+    );
+  };
+
+  public unmountOrganizationList = (node: HTMLDivElement): void => {
+    this.assertComponentsReady(this.#componentControls);
+    void this.#componentControls?.ensureMounted().then(controls => controls.unmountComponent({ node }));
+  };
+
   public mountUserButton = (node: HTMLDivElement, props?: UserButtonProps) => {
     this.assertComponentsReady(this.#componentControls);
     void this.#componentControls?.ensureMounted({ preloadHint: 'UserButton' }).then(controls =>
@@ -647,7 +666,7 @@ export default class Clerk implements ClerkInterface {
     const customNavigate = this.#options.navigate;
 
     if (toURL.origin !== window.location.origin || !customNavigate) {
-      windowNavigate(toURL);
+      windowNavigate(this.buildUrlWithAuth(toURL.href));
       return;
     }
 
@@ -656,15 +675,18 @@ export default class Clerk implements ClerkInterface {
   };
 
   public buildUrlWithAuth(to: string, options?: BuildUrlWithAuthParams): string {
-    if (this.#instanceType === 'production' || !this.#devBrowserHandler?.usesUrlBasedSessionSync()) {
+    if (
+      this.#instanceType === 'production' ||
+      !this.#devBrowserHandler?.usesUrlBasedSessionSync() ||
+      isRelativeUrl(to) ||
+      !isCrossOrigin(to, window.location.href)
+    ) {
       return to;
     }
 
-    const toURL = new URL(to, window.location.origin);
-
-    if (toURL.origin === window.location.origin) {
-      return toURL.href;
-    }
+    // to is an absolute url but do this to keep the trailing slash
+    // (FAPI validation will throw otherwise, can remove when fixed)
+    const toURL = new URL(to, window.location.href);
 
     const devBrowserJwt = this.#devBrowserHandler?.getDevBrowserJWT();
     if (!devBrowserJwt) {
@@ -730,12 +752,12 @@ export default class Clerk implements ClerkInterface {
       { base: getClerkQueryParam(CLERK_SATELLITE_URL) as string, searchParams },
       { stringify: true },
     );
-    return this.navigate(this.buildUrlWithAuth(backToSatelliteUrl));
+    return this.navigate(backToSatelliteUrl);
   };
 
   public redirectWithAuth = async (to: string): Promise<unknown> => {
     if (inBrowser()) {
-      return this.navigate(this.buildUrlWithAuth(to));
+      return this.navigate(to);
     }
     return;
   };
@@ -860,6 +882,11 @@ export default class Clerk implements ClerkInterface {
 
     const navigateToSignUp = makeNavigate(displayConfig.signUpUrl);
 
+    const navigateToFactorOne = makeNavigate(
+      params.firstFactorUrl ||
+        buildURL({ base: displayConfig.signInUrl, hashPath: '/factor-one' }, { stringify: true }),
+    );
+
     const navigateToFactorTwo = makeNavigate(
       params.secondFactorUrl ||
         buildURL({ base: displayConfig.signInUrl, hashPath: '/factor-two' }, { stringify: true }),
@@ -906,11 +933,19 @@ export default class Clerk implements ClerkInterface {
             session: res.createdSessionId,
             beforeEmit: navigateAfterSignIn,
           });
+        case 'needs_first_factor':
+          return navigateToFactorOne();
         case 'needs_second_factor':
           return navigateToFactorTwo();
         default:
           clerkOAuthCallbackDidNotCompleteSignInSignUp('sign in');
       }
+    }
+
+    const userHasUnverifiedEmail = si.status === 'needs_first_factor';
+
+    if (userHasUnverifiedEmail) {
+      return navigateToFactorOne();
     }
 
     const userNeedsToBeCreated = si.firstFactorVerificationStatus === 'transferable';
@@ -1477,8 +1512,7 @@ export default class Clerk implements ClerkInterface {
       return false;
     }
 
-    const buildUrlWithAuthParams: BuildUrlWithAuthParams = { useQueryParam: true };
-    await this.navigate(this.buildUrlWithAuth(redirectUrl, buildUrlWithAuthParams));
+    await this.navigate(this.buildUrlWithAuth(redirectUrl, { useQueryParam: true }));
     return true;
   };
 }

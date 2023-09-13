@@ -46,13 +46,13 @@ const INFINITE_REDIRECTION_LOOP_COOKIE = '__clerk_redirection_loop';
  * The default ideal matcher that excludes the _next directory (internals) and all static files,
  * but it will match the root route (/) and any routes that start with /api or /trpc.
  */
-export const DEFAULT_CONFIG_MATCHER = ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'];
+export const DEFAULT_CONFIG_MATCHER = ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'];
 
 /**
  * Any routes matching this path will be ignored by the middleware.
  * This is the inverted version of DEFAULT_CONFIG_MATCHER.
  */
-export const DEFAULT_IGNORED_ROUTES = ['/((?!api|trpc))(_next|.+\\..+)(.*)'];
+export const DEFAULT_IGNORED_ROUTES = [`/((?!api|trpc))(_next.*|.+\\.[\\w]+$)`];
 /**
  * Any routes matching this path will be treated as API endpoints by the middleware.
  */
@@ -247,9 +247,11 @@ const createDefaultAfterAuth = (
 ) => {
   return (auth: AuthObject, req: WithClerkUrl<NextRequest>) => {
     if (!auth.userId && !isPublicRoute(req)) {
-      informAboutProtectedRoute(req.experimental_clerkUrl.pathname, params);
       if (isApiRoute(req)) {
+        informAboutProtectedRoute(req.experimental_clerkUrl.pathname, params, true);
         return apiEndpointUnauthorizedNextResponse();
+      } else {
+        informAboutProtectedRoute(req.experimental_clerkUrl.pathname, params, false);
       }
       return redirectToSignIn({ returnBackUrl: req.experimental_clerkUrl.href });
     }
@@ -403,10 +405,16 @@ const withNormalizedClerkUrl = (req: NextRequest): WithClerkUrl<NextRequest> => 
   return Object.assign(req, { experimental_clerkUrl: clerkUrl });
 };
 
-const informAboutProtectedRoute = (path: string, params: AuthMiddlewareParams) => {
+const informAboutProtectedRoute = (path: string, params: AuthMiddlewareParams, isApiRoute: boolean) => {
   if (params.debug || isDevelopmentFromApiKey(params.secretKey || SECRET_KEY)) {
     console.warn(
-      informAboutProtectedRouteInfo(path, !!params.publicRoutes, !!params.ignoredRoutes, DEFAULT_IGNORED_ROUTES),
+      informAboutProtectedRouteInfo(
+        path,
+        !!params.publicRoutes,
+        !!params.ignoredRoutes,
+        isApiRoute,
+        DEFAULT_IGNORED_ROUTES,
+      ),
     );
   }
 };

@@ -1,6 +1,7 @@
 import type {
   Appearance,
   CreateOrganizationTheme,
+  OrganizationListTheme,
   OrganizationProfileTheme,
   OrganizationSwitcherTheme,
   SignInTheme,
@@ -217,14 +218,14 @@ export interface Clerk {
 
   /**
    * Mount an organization profile component at the target element.
-   * @param targetNode Target to mount the UserProfile component.
+   * @param targetNode Target to mount the OrganizationProfile component.
    * @param props Configuration parameters.
    */
   mountOrganizationProfile: (targetNode: HTMLDivElement, props?: OrganizationProfileProps) => void;
 
   /**
    * Unmount the organization profile component from the target node.
-   * @param targetNode Target node to unmount the UserProfile component from.
+   * @param targetNode Target node to unmount the OrganizationProfile component from.
    */
   unmountOrganizationProfile: (targetNode: HTMLDivElement) => void;
 
@@ -243,16 +244,29 @@ export interface Clerk {
 
   /**
    * Mount an organization switcher component at the target element.
-   * @param targetNode Target to mount the UserProfile component.
+   * @param targetNode Target to mount the OrganizationSwitcher component.
    * @param props Configuration parameters.
    */
   mountOrganizationSwitcher: (targetNode: HTMLDivElement, props?: OrganizationSwitcherProps) => void;
 
   /**
    * Unmount the organization profile component from the target node.*
-   * @param targetNode Target node to unmount the UserProfile component from.
+   * @param targetNode Target node to unmount the OrganizationSwitcher component from.
    */
   unmountOrganizationSwitcher: (targetNode: HTMLDivElement) => void;
+
+  /**
+   * Mount an organization list component at the target element.
+   * @param targetNode Target to mount the OrganizationList component.
+   * @param props Configuration parameters.
+   */
+  mountOrganizationList: (targetNode: HTMLDivElement, props?: OrganizationListProps) => void;
+
+  /**
+   * Unmount the organization list component from the target node.*
+   * @param targetNode Target node to unmount the OrganizationList component from.
+   */
+  unmountOrganizationList: (targetNode: HTMLDivElement) => void;
 
   /**
    * Register a listener that triggers a callback each time important Clerk resources are changed.
@@ -440,6 +454,12 @@ export type HandleOAuthCallbackParams = {
    * to the same value.
    */
   redirectUrl?: string | null;
+
+  /**
+   * Full URL or path to navigate during sign in,
+   * if identifier verification is required.
+   */
+  firstFactorUrl?: string;
 
   /**
    * Full URL or path to navigate during sign in,
@@ -824,6 +844,50 @@ export type OrganizationSwitcherProps = {
    * prop of ClerkProvided (if one is provided)
    */
   appearance?: OrganizationSwitcherTheme;
+};
+
+export type OrganizationListProps = {
+  /**
+   * Full URL or path to navigate after creating a new organization.
+   * @default undefined
+   */
+  afterCreateOrganizationUrl?:
+    | ((organization: OrganizationResource) => string)
+    | LooseExtractedParams<PrimitiveKeys<OrganizationResource>>;
+  /**
+   * Full URL or path to navigate after a successful organization selection.
+   * Accepts a function that returns URL or path
+   * @default undefined`
+   */
+  afterSelectOrganizationUrl?:
+    | ((organization: OrganizationResource) => string)
+    | LooseExtractedParams<PrimitiveKeys<OrganizationResource>>;
+  /**
+   * Customisation options to fully match the Clerk components to your own brand.
+   * These options serve as overrides and will be merged with the global `appearance`
+   * prop of ClerkProvided (if one is provided)
+   */
+  appearance?: OrganizationListTheme;
+  /**
+   * Hides the screen for sending invitations after an organization is created.
+   * @default undefined When left undefined Clerk will automatically hide the screen if
+   * the number of max allowed members is equal to 1
+   */
+  skipInvitationScreen?: boolean;
+  /**
+   * By default, users can switch between organization and their personal account.
+   * This option controls whether OrganizationList will include the user's personal account
+   * in the organization list. Setting this to `false` will hide the personal account entry,
+   * and users will only be able to switch between organizations.
+   * @default true
+   */
+  hidePersonal?: boolean;
+  /**
+   * Full URL or path to navigate after a successful selection of personal workspace.
+   * Accepts a function that returns URL or path
+   * @default undefined`
+   */
+  afterSelectPersonalUrl?: ((user: UserResource) => string) | LooseExtractedParams<PrimitiveKeys<UserResource>>;
 };
 
 export interface HandleMagicLinkVerificationParams {
